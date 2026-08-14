@@ -1,0 +1,152 @@
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&family=Oswald:wght@500;600;700&family=Permanent+Marker&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Anton", sans-serif;
+  --font-marker: "Permanent Marker", cursive;
+  --font-condensed: "Oswald", sans-serif;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.subtle-orange-glow {
+  text-shadow: 0 0 8px rgba(255, 69, 0, 0.4);
+}
+
+.animate-marquee {
+  animation: marquee 20s linear infinite;
+}
+
+.concrete-texture {
+  background-color: #0a0a0a;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  background-blend-mode: overlay;
+}
+
+.neon-orange-text {
+  color: #ff4500;
+  text-shadow: 0 0 10px #ff4500, 0 0 20px #ff4500, 0 0 40px #ff4500;
+}
+
+.sharp-neon-orange {
+  color: #fff;
+  text-shadow: 
+    0 0 5px #fff,
+    0 0 10px #fff,
+    0 0 20px #ff4500,
+    0 0 30px #ff4500,
+    0 0 40px #ff4500;
+}
+
+.neon-outline {
+  color: transparent;
+  -webkit-text-stroke: 1px #fff;
+  text-shadow: 
+    0 0 5px #fff,
+    0 0 10px #ff4500;
+}
+
+.neon-orange-box {
+  border-color: #ff4500;
+  box-shadow: 0 0 15px #ff4500;
+  transition: all 0.3s ease;
+}
+
+.spray-tag {
+  font-family: 'Permanent Marker', cursive;
+  color: #ff4500;
+  opacity: 0.8;
+  filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.5)) blur(0.5px);
+  transform: rotate(-5deg);
+  letter-spacing: -0.05em;
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 70%, rgba(0,0,0,0.8));
+}
+
+.dot-pattern {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.motion-blur-steak {
+  filter: grayscale(100%) blur(12px) contrast(150%) brightness(0.4);
+  mix-blend-mode: screen;
+}
+
+.graffiti-tag {
+  font-family: 'Permanent Marker', cursive;
+  color: #ff4500;
+  text-shadow: 2px 2px 0px rgba(0,0,0,0.8);
+}
+
+.graffiti-scratch {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0.15;
+  stroke: white;
+  stroke-width: 1;
+  fill: none;
+}
+
+.grain-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3%3Ffilter id='noiseFilter'%3F%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+.distressed-border {
+  border: 4px solid black;
+  mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='f'%3E%3CfeTurbulence baseFrequency='.1'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 10 -5'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23f)'/%3E%3C/svg%3E");
+}
+
+.spray-drip {
+  position: absolute;
+  width: 2px;
+  background: #ff4500;
+  opacity: 0.6;
+  filter: blur(1px);
+}
+
+.subway-badge {
+  @apply flex items-center justify-center rounded-full font-bold text-white;
+  width: 32px;
+  height: 32px;
+  font-size: 16px;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.urban-texture {
+  position: absolute;
+  font-family: 'Permanent Marker', cursive;
+  color: rgba(255, 255, 255, 0.05);
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+}
+
+.marker-highlight {
+  position: relative;
+  display: inline-block;
+}
+
+.marker-highlight::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 69, 0, 0.3);
+  z-index: -1;
+  transform: skewX(-15deg);
+  mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 100 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,10 Q25,0 50,10 T100,10' stroke='black' stroke-width='4' fill='none'/%3E%3C/svg%3E");
+}

@@ -1,0 +1,59 @@
+{
+  "entities": {
+    "MenuItem": {
+      "title": "MenuItem",
+      "description": "A food item on the Deli Boyz menu",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "category": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "isAvailable": { "type": "boolean" }
+      },
+      "required": ["name", "price", "category", "isAvailable"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "A customer order",
+      "type": "object",
+      "properties": {
+        "customerId": { "type": "string" },
+        "customerEmail": { "type": "string" },
+        "customerName": { "type": "string" },
+        "total": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "preparing", "ready", "completed", "cancelled"] },
+        "paymentStatus": { "type": "string", "enum": ["unpaid", "paid"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "items": { "type": "array" }
+      },
+      "required": ["customerId", "total", "status", "paymentStatus", "createdAt", "items"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User account details and roles",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "customer"] },
+        "displayName": { "type": "string" }
+      },
+      "required": ["email", "role"]
+    }
+  },
+  "firestore": {
+    "/menuItems/{itemId}": {
+      "schema": "MenuItem",
+      "description": "Public menu items for ordering"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Customer order records"
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile and role management"
+    }
+  }
+}

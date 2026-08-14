@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // --- 0. Catch-all Deny ---
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- 1. Global Helpers ---
+    function isSignedIn() { return request.auth != null; }
+    function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isAdmin() { return isVerified() && request.auth.token.email == 'zxymgmt@gmail.com'; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+
+    // --- 2. Collection Rules ---
+
+    // Menu Items: Publicly readable, Admin editable
+    match /menuItems/{itemId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // User Profiles
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      
+      // Verification logic:
+      // Standard users MUST be verified to create/update.
+      // Exception: The bootstrap admin email can create their profile WITHOUT verification 
+      // ONLY if it's the specific zxymgmt email to avoid chicken-and-egg lockouts.
+      
+      function canSetupProfile(uid) {
+        return isOwner(uid) && (isVerified() || request.auth.token.email == 'zxymgmt@gmail.com');
+      }
+
+      function isValidUser(data) {
+        return data.email is string &&
+               data.role in ['admin', 'customer'] &&
+               data.displayName is string &&
+               data.displayName.size() <= 100 &&
+               // Ensure users can't grant themselves admin role unless they ARE the admin email
+               (data.role == 'admin' ? request.auth.token.email == 'zxymgmt@gmail.com' : true);
+      }
+
+      allow create: if canSetupProfile(userId) && isValidUser(incoming());
+      
+      allow update: if canSetupProfile(userId) && 
+                      isValidUser(incoming()) &&
+                      incoming().role == existing().role; // Role is immutable after creation
+
+      // Admin can list users
+      allow list: if isAdmin();
+    }
+
+    // Orders
+    match /orders/{orderId} {
+      function isValidOrder(data) {
+        return data.keys().hasAll(['customerId', 'customerEmail', 'items', 'total', 'status', 'paymentStatus', 'createdAt']) &&
+               data.customerId == request.auth.uid &&
+               data.status == 'pending' &&
+               data.paymentStatus == 'unpaid';
+      }
+
+      allow create: if isVerified() && isValidOrder(incoming());
+      
+      allow read: if isVerified() && (isOwner(existing().customerId) || isAdmin());
+      
+      allow update: if isAdmin() && 
+                      incoming().customerId == existing().customerId &&
+                      incoming().diff(existing()).affectedKeys().hasOnly(['status', 'paymentStatus']);
+    }
+  }
+}
