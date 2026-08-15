@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { 
   collection, 
   query, 
@@ -25,10 +25,12 @@ import {
 } from 'firebase/auth';
 import { db, auth } from './firebase';
 import { MenuItem, Order, UserProfile, OrderItem } from './types';
-import { ShoppingCart, User as UserIcon, LogOut, LayoutDashboard, Utensils, Clock, CheckCircle, XCircle, Plus, Minus, Trash2, ChevronRight, MapPin, Instagram, Phone } from 'lucide-react';
+import { ShoppingCart, User as UserIcon, LogOut, LayoutDashboard, Utensils, Clock, CheckCircle, XCircle, Plus, Minus, Trash2, ChevronRight, MapPin, Instagram, Phone, Crown, ScanLine } from 'lucide-react';
 import { cn, formatPrice } from './utils';
 import { Toaster, toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
+import ProfileDashboard from './ProfileDashboard';
+const CashierScanner = lazy(() => import('./CashierScanner'));
 
 enum OperationType {
   CREATE = 'create',
@@ -487,6 +489,8 @@ const Navbar = ({
   cartCount, 
   onOpenCart,
   onOpenAdmin,
+  onOpenCashier,
+  onOpenLoyalty,
   onOpenProfile,
   onOpenMenu,
   onGoHome
@@ -498,6 +502,8 @@ const Navbar = ({
   cartCount: number;
   onOpenCart: () => void;
   onOpenAdmin: () => void;
+  onOpenCashier: () => void;
+  onOpenLoyalty: () => void;
   onOpenProfile: () => void;
   onOpenMenu: () => void;
   onGoHome: () => void;
@@ -521,14 +527,35 @@ const Navbar = ({
         </div>
         
         <div className="flex items-center gap-4">
-          {isAdmin && (
-            <button 
-              onClick={onOpenAdmin}
-              className="p-2 text-black hover:text-orange-600 transition-colors"
-              title="Admin Dashboard"
+          {user && (
+            <button
+              onClick={onOpenLoyalty}
+              className="flex items-center gap-2 p-2 text-black hover:text-[#ff4500] transition-colors font-display uppercase text-sm tracking-widest"
+              title="Loyalty Club"
             >
-              <LayoutDashboard size={24} />
+              <Crown size={24} />
+              <span className="hidden lg:inline">Loyalty</span>
             </button>
+          )}
+
+          {isAdmin && (
+            <>
+              <button
+                onClick={onOpenCashier}
+                className="flex items-center gap-2 p-2 text-black hover:text-[#ff4500] transition-colors font-display uppercase text-sm tracking-widest"
+                title="Cashier Console"
+              >
+                <ScanLine size={24} />
+                <span className="hidden lg:inline">Cashier</span>
+              </button>
+              <button
+                onClick={onOpenAdmin}
+                className="p-2 text-black hover:text-orange-600 transition-colors"
+                title="Admin Dashboard"
+              >
+                <LayoutDashboard size={24} />
+              </button>
+            </>
           )}
           
           <button 
@@ -994,7 +1021,8 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
-  const [view, setView] = useState<'home' | 'menu'>('home');
+  const [view, setView] = useState<'home' | 'menu' | 'loyalty'>('home');
+  const [isCashierOpen, setIsCashierOpen] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
@@ -1029,6 +1057,7 @@ export default function App() {
                 email: u.email,
                 role: isDefaultAdmin ? 'admin' : 'customer',
                 displayName: u.displayName || u.email?.split('@')[0] || 'Deli Fan',
+                points: 0,
                 createdAt: serverTimestamp()
               });
               
@@ -1215,7 +1244,9 @@ export default function App() {
     signOut(auth);
     setCart([]);
     setIsAdminOpen(false);
+    setIsCashierOpen(false);
     setIsProfileModalOpen(false);
+    setView('home');
     toast.success('Logged out');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -1366,6 +1397,8 @@ export default function App() {
         cartCount={cart.reduce((sum, i) => sum + i.quantity, 0)}
         onOpenCart={() => setIsCartOpen(true)}
         onOpenAdmin={() => setIsAdminOpen(true)}
+        onOpenCashier={() => setIsCashierOpen(true)}
+        onOpenLoyalty={() => setView('loyalty')}
         onOpenProfile={() => setIsProfileModalOpen(true)}
         onOpenMenu={() => {
           setView('menu');
@@ -1529,7 +1562,7 @@ export default function App() {
             <LocationsSection />
             <HistorySection />
           </>
-        ) : (
+        ) : view === 'menu' ? (
           <div className="pt-20">
             <div className="max-w-[1400px] mx-auto px-6 mb-12 flex justify-between items-end">
               <div>
@@ -1544,6 +1577,24 @@ export default function App() {
               </button>
             </div>
             <MenuSection items={menuItems} onAddToCart={addToCart} viewOnly={!selectedLocation} />
+          </div>
+        ) : user ? (
+          <ProfileDashboard user={user} />
+        ) : (
+          <div className="pt-40 pb-32 text-center">
+            <Crown size={64} className="mx-auto text-[#ff4500] mb-6" />
+            <h1 className="text-5xl md:text-6xl font-display uppercase tracking-tighter text-white mb-4">
+              Sign in to unlock your loyalty rewards
+            </h1>
+            <p className="text-stone-400 font-sans uppercase tracking-widest mb-8">
+              Earn 1 point per $1 and redeem single-use promos
+            </p>
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="bg-black text-[#ff4500] px-12 py-5 font-display text-3xl uppercase border-4 border-[#ff4500] neon-orange-box hover:bg-white hover:text-black hover:border-white transition-all"
+            >
+              Login / Join
+            </button>
           </div>
         )}
       </main>
@@ -1585,6 +1636,7 @@ export default function App() {
                 <h4 className="text-2xl font-display uppercase tracking-wider text-[#ff4500]">Explore</h4>
                 <ul className="space-y-4 text-sm font-display uppercase tracking-[0.2em] text-white">
                   <li><button onClick={() => { setView('menu'); window.scrollTo(0, 0); }} className="hover:text-[#ff4500] transition-all duration-300">Menu</button></li>
+                  <li><button onClick={() => { setView('loyalty'); window.scrollTo(0, 0); }} className="hover:text-[#ff4500] transition-all duration-300">Loyalty</button></li>
                   <li><button onClick={() => { setView('home'); setTimeout(() => document.getElementById('locations')?.scrollIntoView({ behavior: 'smooth' }), 100); }} className="hover:text-[#ff4500] transition-all duration-300">Locations</button></li>
                   <li><button onClick={() => { setView('home'); setTimeout(() => document.getElementById('history')?.scrollIntoView({ behavior: 'smooth' }), 100); }} className="hover:text-[#ff4500] transition-all duration-300">History</button></li>
                 </ul>
@@ -1627,6 +1679,16 @@ export default function App() {
           onUpdatePaymentStatus={updatePaymentStatus}
           onClose={() => setIsAdminOpen(false)}
         />
+      )}
+
+      {isCashierOpen && (
+        <Suspense fallback={
+          <div className="fixed inset-0 bg-[#0a0a0a] z-[120] flex items-center justify-center">
+            <div className="w-12 h-12 border-4 border-stone-700 border-t-[#ff4500] rounded-full animate-spin" />
+          </div>
+        }>
+          <CashierScanner onClose={() => setIsCashierOpen(false)} />
+        </Suspense>
       )}
     </div>
   );

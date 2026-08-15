@@ -1,7 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     // --- 0. Catch-all Deny ---
     match /{document=**} {
       allow read, write: if false;
@@ -11,52 +11,91 @@ service cloud.firestore {
     function isSignedIn() { return request.auth != null; }
     function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
     function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
-    function isAdmin() { return isVerified() && request.auth.token.email == 'zxymgmt@gmail.com'; }
+    function isDefaultAdmin() { return isSignedIn() && request.auth.token.email == 'zxymgmt@gmail.com'; }
+    function isAdmin() { return isVerified() && isDefaultAdmin(); }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
     function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
 
-    // --- 2. Collection Rules ---
-
-    // Menu Items: Publicly readable, Admin editable
+    // --- 2. Menu Items: Publicly readable, Admin editable ---
     match /menuItems/{itemId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    // User Profiles
+    // --- 3. User Profiles (incl. loyalty points) ---
+    // read: owner or admin. list: admin only.
+    // write: users may set their own basic profile (email, displayName, role, points=0 on create)
+    //        but can NEVER change their own `points` or `role`.
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
-      
-      // Verification logic:
-      // Standard users MUST be verified to create/update.
-      // Exception: The bootstrap admin email can create their profile WITHOUT verification 
-      // ONLY if it's the specific zxymgmt email to avoid chicken-and-egg lockouts.
-      
+      allow list: if isAdmin();
+
+      // Standard users MUST be verified to create/update their own profile.
+      // Exception: the bootstrap admin email can create their profile WITHOUT verification
+      // to avoid chicken-and-egg lockouts.
       function canSetupProfile(uid) {
-        return isOwner(uid) && (isVerified() || request.auth.token.email == 'zxymgmt@gmail.com');
+        return isOwner(uid) && (isVerified() || isDefaultAdmin());
       }
 
       function isValidUser(data) {
         return data.email is string &&
+               data.email.size() <= 320 &&
                data.role in ['admin', 'customer'] &&
                data.displayName is string &&
                data.displayName.size() <= 100 &&
-               // Ensure users can't grant themselves admin role unless they ARE the admin email
-               (data.role == 'admin' ? request.auth.token.email == 'zxymgmt@gmail.com' : true);
+               // points optional on update (legacy docs), but when present must be a non-negative int
+               (!('points' in data) || (data.points is int && data.points >= 0)) &&
+               // Users can't grant themselves admin unless they ARE the admin email
+               (data.role == 'admin' ? isDefaultAdmin() : true);
       }
 
-      allow create: if canSetupProfile(userId) && isValidUser(incoming());
-      
-      allow update: if canSetupProfile(userId) && 
-                      isValidUser(incoming()) &&
-                      incoming().role == existing().role; // Role is immutable after creation
+      // Non-admin writes must not change points or role.
+      function pointsUnchanged() {
+        return isAdmin() ||
+               (!('points' in incoming()) && !('points' in existing())) ||
+               (('points' in incoming()) && ('points' in existing()) && incoming().points == existing().points);
+      }
+      function roleUnchanged() { return incoming().role == existing().role; }
 
-      // Admin can list users
-      allow list: if isAdmin();
+      // Create: own profile only, points must start at 0 (only admin can assign points).
+      allow create: if canSetupProfile(userId) && isValidUser(incoming()) && incoming().points == 0;
+
+      // Update: admins full access; users can edit basic fields but never points/role.
+      allow update: if isAdmin() ||
+                      (canSetupProfile(userId) && isValidUser(incoming()) && roleUnchanged() && pointsUnchanged());
+
+      allow delete: if isAdmin();
     }
 
-    // Orders
+    // --- 4. Rewards: active promotions & single-use discount QR tokens ---
+    // Fields: userId, title, qrCodeToken, status ('active'|'redeemed'), createdAt, expiresAt.
+    // Users read/list their own rewards. Only admins create rewards / mark them redeemed.
+    match /rewards/{rewardId} {
+      allow get: if isSignedIn() && (isOwner(existing().userId) || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+
+      function isValidReward(data) {
+        return data.keys().hasAll(['userId', 'title', 'qrCodeToken', 'status', 'createdAt', 'expiresAt']) &&
+               data.userId is string &&
+               data.userId.size() <= 128 &&
+               data.title is string &&
+               data.title.size() <= 100 &&
+               data.qrCodeToken is string &&
+               data.qrCodeToken.size() <= 128 &&
+               data.status in ['active', 'redeemed'] &&
+               data.createdAt is timestamp &&
+               data.expiresAt is timestamp &&
+               data.expiresAt > request.time;
+      }
+
+      // Admin issues rewards; tokens are single-use and may not be edited after creation.
+      allow create: if isAdmin() && isValidReward(incoming());
+      allow update: if isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['status']);
+      allow delete: if isAdmin();
+    }
+
+    // --- 5. Orders ---
     match /orders/{orderId} {
       function isValidOrder(data) {
         return data.keys().hasAll(['customerId', 'customerEmail', 'items', 'total', 'status', 'paymentStatus', 'createdAt']) &&
@@ -66,10 +105,10 @@ service cloud.firestore {
       }
 
       allow create: if isVerified() && isValidOrder(incoming());
-      
+
       allow read: if isVerified() && (isOwner(existing().customerId) || isAdmin());
-      
-      allow update: if isAdmin() && 
+
+      allow update: if isAdmin() &&
                       incoming().customerId == existing().customerId &&
                       incoming().diff(existing()).affectedKeys().hasOnly(['status', 'paymentStatus']);
     }

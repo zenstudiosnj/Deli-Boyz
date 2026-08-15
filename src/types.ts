@@ -1,3 +1,5 @@
+import type { Timestamp } from 'firebase/firestore';
+
 export interface MenuItem {
   id: string;
   name: string;
@@ -32,4 +34,16 @@ export interface UserProfile {
   email: string;
   role: 'admin' | 'customer';
   displayName?: string;
+  points?: number;
+  createdAt?: string;
+}
+
+export interface Reward {
+  id: string;
+  userId: string;
+  title: string;
+  qrCodeToken: string;
+  status: 'active' | 'redeemed';
+  createdAt: Timestamp;
+  expiresAt: Timestamp;
 }
