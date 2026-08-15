@@ -1378,6 +1378,11 @@ export default function App() {
       setIsLocationModalOpen(false);
       return;
     }
+    if (location === 'BRONX') {
+      window.open('https://order.online/store/deli-boyz-ii-38024353', '_blank');
+      setIsLocationModalOpen(false);
+      return;
+    }
     setSelectedLocation(location);
     setIsLocationModalOpen(false);
     setView('menu'); // Take them to the menu page to start ordering
